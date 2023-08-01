@@ -2,17 +2,24 @@
   "name": "gettile",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/build.js",
+  "module": "dist/build.mjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node index.mjs"
+    "start": "node index.mjs",
+    "build": "vite build"
   },
-  "keywords": [],
+  "keywords": [
+    "gettile"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
     "ol": "^6.15.1",
     "progress": "^2.0.3",
     "request": "2.88.2"
+  },
+  "devDependencies": {
+    "vite": "^4.4.7"
   }
 }
