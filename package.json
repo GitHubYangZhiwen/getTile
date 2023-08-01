@@ -12,6 +12,7 @@
   "license": "ISC",
   "dependencies": {
     "ol": "^6.15.1",
+    "progress": "^2.0.3",
     "request": "2.88.2"
   }
 }

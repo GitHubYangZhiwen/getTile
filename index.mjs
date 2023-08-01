@@ -1,28 +1,27 @@
 
+import ProgressBar from 'progress';
 import request from "request";
 import * as fs from 'fs';
 import { get as getProjection } from 'ol/proj.js';
 import { getWidth } from 'ol/extent.js';
 
-const url = "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{level}/{row}/{col}"
-// "3857"  or "4326"  
+const key = "lirfd6Fegsjkvs0lshxe";
+const url = "https://api.maptiler.com/tiles/satellite/{level}/{row}/{col}.jpg?key=" + key;
+// crs: "3857"  or "4326"  
 const wkid = "3857";
 // const extent =  [xMin, yMax, xMax, yMin];
-const extent = [12545410, 4177852, 12717504, 4046797];
-const levelinterval = [5, 6];
+// target extent
+const extent = [-20037508.342789244, 20037508.342789244, 20037508.342789244, -20037508.342789244];
+const levelinterval = [1, 6];
 
-if (true) {
-  main();
-}
+(function main() {
 
-function main() {
-
-  function getOrigin(wkid) {
+  function __getOrigin(wkid) {
     const projExtent = getProjection('EPSG:' + wkid).getExtent();
     return [projExtent[0], projExtent[3]]
   }
 
-  function getResolutions(wkid) {
+  function __getResolutions(wkid) {
     const projExtent = getProjection('EPSG:' + wkid).getExtent();
     const startResolution = getWidth(projExtent) / 256;
 
@@ -35,8 +34,8 @@ function main() {
     return resolutions;
   }
 
-  const origin = getOrigin(wkid);
-  function rowcol(re, xy) {
+  const origin = __getOrigin(wkid);
+  function __rowcol(re, xy) {
     const [x0, y0] = origin
 
     const tileSize = 256;
@@ -52,6 +51,14 @@ function main() {
     return [col, row];
   }
 
+  const promisePool = async function (functions, n) {
+    await Promise.all([...new Array(n)].map(async () => {
+      while (functions.length) {
+        await functions.shift()()
+      }
+    }))
+  };
+
   function sleep(time) {
     return new Promise((resolve) => {
       setTimeout(() => {
@@ -60,31 +67,68 @@ function main() {
     })
   }
 
-  const resolutions = getResolutions(wkid);
-  async function getTiles() {
-    const dir = "./map_" + (new Date()).getSeconds() + "/";
+  const resolutions = __getResolutions(wkid);
+
+  // 创建目录
+  async function makedir() {
+    const dir = "./map_" + (new Date()).getTime() + "/";
     await fs.mkdirSync(dir);
-    for (let lod = levelinterval[0]; lod < levelinterval[1]; lod++) {
+    for (let lod = levelinterval[0]; lod <= levelinterval[1]; lod++) {
       const resolution = resolutions[lod];
       const level = lod;
-      const [left, top] = rowcol(resolution, [extent[0], extent[1]]);
-      const [right, bottom] = rowcol(resolution, [extent[2], extent[3]]);
-      console.log(left, top, right, bottom)
+      const [left, top] = __rowcol(resolution, [extent[0], extent[1]]);
+      const [right, bottom] = __rowcol(resolution, [extent[2], extent[3]]);
       await fs.mkdirSync(dir + level);
       for (let i = top; i <= bottom; i++) {
         await fs.mkdirSync(dir + level + "/" + i);
+      }
+    }
+    return dir;
+  }
+
+  async function getTiles() {
+    const dir = await makedir();
+    let functionss = [];
+    for (let lod = levelinterval[0]; lod <= levelinterval[1]; lod++) {
+      const resolution = resolutions[lod];
+      const level = lod;
+      const [left, top] = __rowcol(resolution, [extent[0], extent[1]]);
+      const [right, bottom] = __rowcol(resolution, [extent[2], extent[3]]);
+      // console.log('level:' + level + ';extent:' + left, top, right, bottom)
+      for (let i = top; i <= bottom; i++) {
         for (let j = left; j <= right; j++) {
-          console.log(level, i, j);
-          let urlTarget = url.replace("{level}", level).replace("{row}", i).replace("{col}", j);
-          console.log(urlTarget)
-          request({
-            url: urlTarget
-          })
-            .pipe(fs.createWriteStream(dir + level + "/" + i + "/" + j + '.png'))
-          await sleep(200);
+
+          functionss.push(
+            () => new Promise(res => {
+              let urlTarget = url.replace("{level}", level).replace("{row}", i).replace("{col}", j);
+              // console.log("当前处理目标:" + urlTarget)
+              const writeStream = fs.createWriteStream(dir + level + "/" + i + "/" + j + '.jpg')
+              const readStream = request(urlTarget)
+              readStream.pipe(writeStream);
+              readStream.on('end', function (response) {
+                // console.log('文件写入成功');
+                writeStream.end();
+              });
+
+              writeStream.on("finish", function () {
+                // console.log("ok");
+                bar.tick();
+                res();
+              });
+
+            })
+          );
+
         }
       }
     }
+    var bar = new ProgressBar('  downloading [:bar] :rate/bps :percent :etas', {
+      complete: '=',
+      incomplete: ' ',
+      width: 20,
+      total: functionss.length
+    });
+    promisePool(functionss, 10);
   }
   getTiles();
-}
+}())
