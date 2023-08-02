@@ -46,7 +46,7 @@ function geturl(ob) {
 function getextent(ob) {
   let extent = [-20037508.342789244, 20037508.342789244, 20037508.342789244, -20037508.342789244];
   if ('extent' in ob) {
-    extent = ob['extent']
+    extent = eval(ob['extent'])
   }
   return extent;
 }
@@ -55,13 +55,19 @@ function getspeed(ob) {
   let speed = 10;
   if ('speed' in ob) {
     switch (ob['speed']) {
-      case 'H', 'h', 'high':
+      case 'H':
+      case 'h':
+      case 'high':
         speed = 20;
         break;
-      case 'M', 'm', 'medium':
+      case 'M':
+      case 'm':
+      case 'medium':
         speed = 15;
         break;
-      case 'L', 'l', 'low':
+      case 'L':
+      case 'l':
+      case 'low':
         speed = 10;
         break;
     }
