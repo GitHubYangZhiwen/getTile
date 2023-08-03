@@ -34,6 +34,15 @@ const extent = getextent(ob);
 const url = geturl(ob);
 const levelinterval = getlevel(ob);
 const speed = getspeed(ob);
+const dir = getdir(ob);
+
+function getdir(ob) {
+  let dir = "./map_" + (new Date()).getTime() + "/";
+  if ('name' in ob) {
+    dir = "./map_" + ob['name'] + "/";
+  }
+  return dir;
+}
 
 function geturl(ob) {
   let url = "https://api.maptiler.com/tiles/satellite/{level}/{row}/{col}.jpg?key=" + "lirfd6Fegsjkvs0lshxe";
@@ -145,7 +154,6 @@ function getlevel(ob) {
 
   // 创建目录
   async function makedir() {
-    const dir = "./map_" + (new Date()).getTime() + "/";
     await fs.mkdirSync(dir);
     for (let lod = levelinterval[0]; lod <= levelinterval[1]; lod++) {
       const resolution = resolutions[lod];
@@ -157,18 +165,17 @@ function getlevel(ob) {
         await fs.mkdirSync(dir + level + "/" + i);
       }
     }
-    return dir;
   }
 
   async function getTiles() {
-    const dir = await makedir();
+    await makedir();
     let functionss = [];
     for (let lod = levelinterval[0]; lod <= levelinterval[1]; lod++) {
       const resolution = resolutions[lod];
       const level = lod;
       const [left, top] = __rowcol(resolution, [extent[0], extent[1]]);
       const [right, bottom] = __rowcol(resolution, [extent[2], extent[3]]);
-      // console.log('level:' + level + ';extent:' + left, top, right, bottom)
+      console.log('level:' + level + ';extent:' + left, top, right, bottom)
       for (let i = top; i < bottom; i++) {
         for (let j = left; j < right; j++) {
 
